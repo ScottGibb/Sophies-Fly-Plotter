@@ -1,0 +1,4 @@
+megalinter-reports/
+.venv/
+venv/
+poetry.lock

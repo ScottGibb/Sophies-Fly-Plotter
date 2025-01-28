@@ -1,7 +1,7 @@
 ---
 # This is the workflow for Deploying the software on Windows It should create an executable file
 # The executable file should be uploaded as an artifact
-# The executable file should be named "Fly Swapper 3000"
+# The executable file should be named "Fly Plotter 4000"
 name: Deployment
 
 on:
@@ -37,6 +37,15 @@ jobs:
               exit 1  # Exits with a non-zero status to fail the workflow
             fi
         shell: bash 
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+        run: |
+          gh release create "$tag" \
+              --repo="$GITHUB_REPOSITORY" \
+              --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
+              --generate-notes
       - uses: sayyid5416/pyinstaller@v1
         with:
           python_ver: "3.12"

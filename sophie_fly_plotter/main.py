@@ -116,6 +116,33 @@ def plot_cartesian_data(trajectories: pd.DataFrame) -> None:
     plot_1.show()
 
 
+def plot_heatmap(trajectories: pd.DataFrame) -> None:
+    """
+    Plot the heatmap of the flies
+    Args:
+        trajectories (pd.DataFrame): The trajectories to plot
+    """
+    num_flys = int(trajectories.shape[1] / 2)
+    logging.info(f"Plotting {num_flys} flys")
+    plot_2 = plt.figure(2)
+    for i in range(1, num_flys + 1):  # Loop through x1, y1 to x5, y5
+        logging.info(f"Plotting fly {i}")
+        plt.hist2d(
+            trajectories[f"x{i}"],
+            trajectories[f"y{i}"],
+            bins=50,
+            cmap="plasma",
+        )
+
+    # Add titles and labels
+    plt.title("Heatmap of Fly Data (x, y) Pairs")
+    plt.xlabel("X values")
+    plt.ylabel("Y values")
+    plt.legend()
+    plt.grid(True)
+    plot_2.show()
+
+
 def process_sheet() -> None:
     """
     Process the selected file
@@ -130,6 +157,7 @@ def process_sheet() -> None:
     sheet = load_csv_file(file_name)
     validate_trajectories(sheet)
     plot_cartesian_data(sheet)
+    plot_heatmap(sheet)
 
 
 def main_gui() -> None:

@@ -76,19 +76,6 @@ def validate_trajectories(trajectories: pd.DataFrame) -> None:
         sys.exit(-1)
 
 
-def remove_nans(trajectories: pd.DataFrame) -> pd.DataFrame:
-    """
-    Remove any rows that contain NaN values
-    Args:
-        trajectories (pd.DataFrame): The trajectories to clean
-    Returns:
-        pd.DataFrame: The cleaned trajectories
-    """
-    logging.info("Removing any rows with NaN values")
-    trajectories = trajectories.notna()
-    return trajectories
-
-
 def plot_cartesian_data(trajectories: pd.DataFrame) -> None:
     """
     Plot the cartesian data of the flies
@@ -122,25 +109,40 @@ def plot_heatmap(trajectories: pd.DataFrame) -> None:
     Args:
         trajectories (pd.DataFrame): The trajectories to plot
     """
+    # Calculate the number of flies based on columns
     num_flys = int(trajectories.shape[1] / 2)
     logging.info(f"Plotting {num_flys} flys")
-    plot_2 = plt.figure(2)
-    for i in range(1, num_flys + 1):  # Loop through x1, y1 to x5, y5
-        logging.info(f"Plotting fly {i}")
-        plt.hist2d(
-            trajectories[f"x{i}"],
-            trajectories[f"y{i}"],
-            bins=50,
-            cmap="plasma",
-        )
+
+    # Create lists of all X and Y values
+    x_values = []
+    y_values = []
+    for i in range(1, num_flys + 1):
+        x_values.extend(trajectories[f"x{i}"].values)  # Append values (flatten)
+        y_values.extend(trajectories[f"y{i}"].values)
+
+    x_values = np.array(x_values)
+    y_values = np.array(y_values)
+
+    # Remove NaN and inf values
+    valid_mask = np.isfinite(x_values) & np.isfinite(
+        y_values
+    )  # Valid points are finite
+    x_values = x_values[valid_mask]
+    y_values = y_values[valid_mask]
+
+    plot = plt.figure(2)
+    # Create 2D Heat Map
+    plt.hist2d(x_values, y_values, bins=(10, 10))
+
+    # Add color bar for intensity reference
+    plt.colorbar(label="Density")
 
     # Add titles and labels
     plt.title("Heatmap of Fly Data (x, y) Pairs")
     plt.xlabel("X values")
     plt.ylabel("Y values")
-    plt.legend()
     plt.grid(True)
-    plot_2.show()
+    plot.show()
 
 
 def process_sheet() -> None:

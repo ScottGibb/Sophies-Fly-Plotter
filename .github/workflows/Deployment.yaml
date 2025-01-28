@@ -1,0 +1,45 @@
+---
+# This is the workflow for Deploying the software on Windows It should create an executable file
+# The executable file should be uploaded as an artifact
+# The executable file should be named "Fly Swapper 3000"
+name: Deployment
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "main"
+
+jobs:
+  pyinstaller-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v4
+        # see details (matrix, python-version, python-version-file, etc.)
+        # https://github.com/actions/setup-python
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v4
+      - name: Setup a local virtual environment (if no poetry.toml file)
+        run: |
+          poetry config virtualenvs.create true --local
+          poetry config virtualenvs.in-project true --local
+      - uses: actions/cache@v3
+        name: Define a cache for the virtual environment based on the dependencies lock file
+        with:
+          path: ./.venv
+          key: venv-${{ hashFiles('poetry.lock') }}
+        run: |
+        poetry self add poetry-plugin-export
+        poetry export -f requirements.txt --output requirements.txt
+      - name: Create Executable
+        uses: sayyid5416/pyinstaller@v1
+        with:
+          python_ver: "3.12"
+          spec: "main.py"
+          requirements: "requirements.txt"
+          upload_exe_with_name: "Fly Swapper 3000"
+          options: --onefile, --name "Fly Swapper 3000", --icon ".\docs\\SG Logo.ico", --add-data ".\docs\;docs"

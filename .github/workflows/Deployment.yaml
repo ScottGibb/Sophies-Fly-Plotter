@@ -32,9 +32,10 @@ jobs:
         with:
           path: ./.venv
           key: venv-${{ hashFiles('poetry.lock') }}
+      - name: Create requirements.txt
         run: |
-        poetry self add poetry-plugin-export
-        poetry export -f requirements.txt --output requirements.txt
+          poetry self add poetry-plugin-export
+          poetry export -f requirements.txt --output requirements.txt
       - name: Create Executable
         uses: sayyid5416/pyinstaller@v1
         with:

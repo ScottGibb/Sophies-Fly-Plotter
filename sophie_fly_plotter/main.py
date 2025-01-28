@@ -2,11 +2,11 @@
 import logging
 import os
 import sys
-from tkinter import Button, Entry, Label, StringVar, filedialog, Tk
+from tkinter import Button, Label, filedialog, Tk
 from matplotlib import pyplot as plt
+import numpy as np
 import pandas as pd
 
-import numpy as np
 
 logging.basicConfig(level=logging.INFO)
 
@@ -89,10 +89,16 @@ def remove_nans(trajectories: pd.DataFrame) -> pd.DataFrame:
     return trajectories
 
 
-def plot_data(trajectories: pd.DataFrame) -> None:
+def plot_cartesian_data(trajectories: pd.DataFrame) -> None:
+    """
+    Plot the cartesian data of the flies
+    Args:
+        trajectories (pd.DataFrame): The trajectories to plot
+    """
     num_flys = int(trajectories.shape[1] / 2)
     logging.info(f"Plotting {num_flys} flys")
-    for i in range(1, num_flys):  # Loop through x1, y1 to x5, y5
+    plot_1 = plt.figure(1)
+    for i in range(1, num_flys + 1):  # Loop through x1, y1 to x5, y5
         logging.info(f"Plotting fly {i}")
         plt.plot(
             trajectories[f"x{i}"],
@@ -107,9 +113,15 @@ def plot_data(trajectories: pd.DataFrame) -> None:
     plt.ylabel("Y values")
     plt.legend()
     plt.grid(True)
+    plot_1.show()
 
 
 def process_sheet() -> None:
+    """
+    Process the selected file
+    Check for issues with the format of the file
+    Plot the values on a graph ignore nan values
+    """
     global file_name
     if file_name is None:
         logging.error("You need to select a file first!")
@@ -117,7 +129,7 @@ def process_sheet() -> None:
 
     sheet = load_csv_file(file_name)
     validate_trajectories(sheet)
-    plot_data(sheet)
+    plot_cartesian_data(sheet)
 
 
 def main_gui() -> None:

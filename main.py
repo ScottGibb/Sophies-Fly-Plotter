@@ -14,6 +14,12 @@ logging.basicConfig(level=logging.INFO)
 file_name = None
 fps = 30  # Frames per second
 
+# Dish Variables
+dish_center_x = 800
+dish_center_y = 550
+## Dish is a circle with diameter of 55mm
+dish_radius = 550
+
 
 def get_file_path_from_gui():
     """
@@ -93,7 +99,7 @@ def plot_cartesian_data(trajectories: pd.DataFrame) -> None:
             label=f"Fly {i}",
             marker="o",
         )
-
+    draw_dish_and_set_limits(plt)
     # Add titles and labels
     plt.title("Plot of Fly Data (x, y) Pairs")
     plt.xlabel("X values")
@@ -132,17 +138,35 @@ def plot_heatmap(trajectories: pd.DataFrame) -> None:
 
     plot = plt.figure(2)
     # Create 2D Heat Map
-    plt.hist2d(x_values, y_values, bins=(10, 10))
-
+    plt.hist2d(x_values, y_values, bins=(1, 1))
     # Add color bar for intensity reference
     plt.colorbar(label="Density")
+    # Draw Hardcoded Circle on the plot and then set the limits
+    draw_dish_and_set_limits(plt)
 
     # Add titles and labels
     plt.title("Heatmap of Fly Data (x, y) Pairs")
-    plt.xlabel("X values")
-    plt.ylabel("Y values")
     plt.grid(True)
     plot.show()
+
+
+def draw_dish_and_set_limits(plt) -> tuple:
+    """
+    Draw a dish and return the center of the dish and radius
+    Returns:
+        int: The x coordinate of the dish center
+        int: The y coordinate of the dish center
+        int: The radius of the dish
+    """
+    global dish_center_x, dish_center_y, dish_radius
+    # Draw Hardcoded Circle on the plot
+    circle = plt.Circle(
+        (dish_center_x, dish_center_y), dish_radius, color="r", fill=False
+    )
+    plt.gca().add_artist(circle)
+    plt.xlim(dish_center_x - dish_radius, dish_center_x + dish_radius)
+    plt.ylim(dish_center_y - dish_radius, dish_center_y + dish_radius)
+    plt.gca().set_aspect("equal", adjustable="box")
 
 
 def process_sheet() -> None:

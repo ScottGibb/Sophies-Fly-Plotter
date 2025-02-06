@@ -18,7 +18,7 @@ video_file_name = None
 fps = 30  # Frames per second
 
 # Dish Variables Defaults
-dish_center_x = 800
+dish_center_x = 550
 dish_center_y = 550
 ## Dish is a circle with diameter of 55mm
 dish_radius = 550
@@ -154,8 +154,6 @@ def plot_heatmap(trajectories: pd.DataFrame) -> None:
     x_values = x_values[valid_mask]
     y_values = y_values[valid_mask]
 
-    # Flip Y values if needed
-    y_values = -y_values
 
     t_s = 0
     t_f = x_values.size if x_values.size > 0 else 0
@@ -185,13 +183,13 @@ def plot_heatmap(trajectories: pd.DataFrame) -> None:
         extent=[x_bins[0], x_bins[-1], y_bins[0], y_bins[-1]],
         aspect="auto",
     )
-    # draw_dish_and_set_limits(plt)
     plt.colorbar(label="Density")
     plt.title(
         f"Heatmap of Fly Trajectories between {round(t_s / fps, 2)} and {round(t_f / fps, 2)} secs"
     )
     plt.xlabel("X Position")
     plt.ylabel("Y Position")
+    draw_dish_and_set_limits(plt)
 
     plt_2.show()
 
@@ -199,13 +197,8 @@ def plot_heatmap(trajectories: pd.DataFrame) -> None:
 def draw_dish_and_set_limits(plt) -> tuple:
     """
     Draw a dish and return the center of the dish and radius
-    Returns:
-        int: The x coordinate of the dish center
-        int: The y coordinate of the dish center
-        int: The radius of the dish
     """
     global dish_center_x, dish_center_y, dish_radius
-    # Draw Hardcoded Circle on the plot
     circle = plt.Circle(
         (dish_center_x, dish_center_y), dish_radius, color="r", fill=False
     )

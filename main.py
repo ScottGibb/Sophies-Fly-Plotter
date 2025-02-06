@@ -9,7 +9,7 @@ import pandas as pd
 from scipy.ndimage import gaussian_filter
 from tkinter import messagebox
 from PIL import Image, ImageTk
-
+import cv2
 
 logging.basicConfig(level=logging.INFO)
 
@@ -19,10 +19,10 @@ video_file_name = None
 fps = 30  # Frames per second
 
 # Dish Variables Defaults
-dish_center_x = 550
-dish_center_y = 550
+dish_center_x = 0
+dish_center_y = 0
 ## Dish is a circle with diameter of 55mm
-dish_radius = 550
+dish_radius = 500
 
 
 def get_csv_file_path():
@@ -44,7 +44,7 @@ def get_video_file_path():
     """
     global video_file_name
     file_types = [("Video files", "*.mp4 *.avi *.mov")]
-    video_file = get_file_path(file_types)
+    video_file_name = get_file_path(file_types)
     logging.info(f"Selected file: {video_file_name}")
     
 def get_file_path(file_types) -> str:
@@ -92,7 +92,7 @@ def validate_trajectories(trajectories: pd.DataFrame) -> None:
     num_columns = trajectories.shape[1]
     num_flys = num_columns / 2
     logging.info(
-        f"There are {num_columns} in this spreadsheet, this means there are {num_flys} flys in this sheet"
+        f"There are {num_columns} columns in this spreadsheet, this means there are {num_flys} flys in this sheet"
     )
     if num_flys % 1 != 0:
         logging.error(
@@ -217,15 +217,20 @@ def process_sheet() -> None:
     """
     global csv_file_name, video_file_name
     
-    # if video_file_name is None or csv_file_name is None:
-    #     logging.error("You need to select a Video file first!")
-    #     messagebox.showwarning("Missing Video File", "You need to select a file first!")
-    #     return    
+    if video_file_name is None or csv_file_name is None:
+        logging.error("You need to select a Video file first!")
+        messagebox.showwarning("Missing Video File", "You need to select a file first!")
+        return    
     if csv_file_name is None:
         logging.error("You need to select a  CSV file first!")
         messagebox.showwarning("Missing CSV File", "You need to select a file first!")
         return
-    calculate_center_and_radius()
+    try:
+        calculate_center_and_radius()
+    except Exception as e:
+        logging.error(f"Error calculating center and radius of the dish: {e}")
+        messagebox.showwarning("Error Calculating Center and Radius", "Error calculating center and radius of the dish")
+        return
     sheet = load_csv_file(csv_file_name)
     validate_trajectories(sheet)
     plot_cartesian_data(sheet)
@@ -239,32 +244,47 @@ def calculate_center_and_radius():
     if not cap.isOpened():
         logging.error("Error opening video file")
         messagebox.showwarning("Error Opening Video", "Error opening video file")
-        return      
-    # Read the first frame
-    ret, frame = cap.read()
-    if not ret:
-        logging.error("Error reading video file")
-        messagebox.showwarning("Error Reading Video", "Error reading video file")
-        return
-    # Perform hough circle transform
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    gray = cv2.GaussianBlur(gray, (5, 5), 0)
-    circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 20, param1=50, param2=30, minRadius=0, maxRadius=0)
-    if circles is None:
-        logging.error("No circles found in the video")
-        messagebox.showwarning("No Circles Found", "No circles found in the video")
-        return
-    circles = np.uint16(np.around(circles))
-    for i in circles[0, :]:
-        # Find the Biggest Circle
-        if i[2] > dish_radius:
-            dish_center_x = i[0]
-            dish_center_y = i[1]
-            dish_radius = i[2]
+        return  
     
+    avg_dish_radius = []
+    avg_dish_center_x = []
+    avg_dish_center_y = []
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    num_frames =int( 0.1 * frame_count) # Use 10% of the frames
+    logging.info(f"Number of frames in the video: {frame_count}")
+    logging.info(f"Number of frames to process: {num_frames}")
+    # Read the first frame
+    for i in range(num_frames):
+        ret, frame = cap.read()
+        if not ret:
+            logging.error("Error reading video file")
+            messagebox.showwarning("Error Reading Video", "Error reading video file")
+            raise Exception("Error reading video file")
+        # Perform hough circle transform
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (5, 5), 0)
+        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 20, param1=50, param2=30, minRadius=0, maxRadius=0)
+        if circles is None:
+            logging.error("No circles found in the video")
+            messagebox.showwarning("No Circles Found", "No circles found in the video")
+            return
+        circles = np.uint16(np.around(circles))
+        # Find the second biggest circle
+        sorted_circles = sorted(circles[0, :], key=lambda x: x[2], reverse=True)
+        if len(sorted_circles) >= 2:
+            i = sorted_circles[1]
+            avg_dish_center_x.append(i[0])
+            avg_dish_center_y.append(i[1])
+            avg_dish_radius.append(i[2])
+        
+        
+    cap.release()
+    dish_center_x = int(np.mean(avg_dish_center_x))
+    dish_center_y = int(np.mean(avg_dish_center_y))
+    dish_radius = int(np.mean(avg_dish_radius))
     logging.info(f"Center of the dish: ({dish_center_x}, {dish_center_y})")
     logging.info(f"Radius of the dish: {dish_radius}")
-    cap.release()
+    
     
 def main_gui() -> None:
     """

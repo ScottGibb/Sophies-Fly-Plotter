@@ -6,47 +6,65 @@ from tkinter import Button, Label, filedialog, Tk
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy.ndimage import gaussian_filter
+from tkinter import messagebox
 
 
 logging.basicConfig(level=logging.INFO)
 
 # Global Variables (Very Naughty... but quick)
-file_name = None
+csv_file_name = None
+video_file_name = None
 fps = 30  # Frames per second
 
-# Dish Variables
+# Dish Variables Defaults
 dish_center_x = 800
 dish_center_y = 550
 ## Dish is a circle with diameter of 55mm
 dish_radius = 550
 
 
-def get_file_path_from_gui():
+def get_csv_file_path():
     """
     Opens a file explorer to select the flies Excel file
     Returns:
         str: The file path selected by the user
     """
-    global file_name
+    global csv_file_name
+    file_types = [("Excel files", "*.xlsb *.xlsx *.xls *.csv")]
+    csv_file_name = get_file_path(file_types)
+    logging.info(f"Selected file: {csv_file_name}")
+
+def get_video_file_path():
+    """
+    Opens a file explorer to select the video file
+    Returns:
+        str: The file path selected by the user
+    """
+    global video_file_name
+    file_types = [("Video files", "*.mp4 *.avi *.mov")]
+    video_file = get_file_path(file_types)
+    logging.info(f"Selected file: {video_file_name}")
+    
+def get_file_path(file_types) -> str:
     file_name = filedialog.askopenfilename(
         title="Select the flies Excel file",
-        filetypes=[("Excel files", "*.xlsb *.xlsx *.xls *.csv")],
+        filetypes=file_types,
     )
-    logging.info(f"Selected file: {file_name}")
-
+    return file_name
 
 def validate_path() -> None:
     """
     Check if the file path exists
     """
-    global file_name
-    if os.path.exists(file_name):
-        logging.info(f"Good job, the path {file_name} exists!!")
+    global csv_file_name
+    if os.path.exists(csv_file_name):
+        logging.info(f"Good job, the path {csv_file_name} exists!!")
     else:
         logging.error(
             "It looks like the path you gave me doesn't exist.... "
             "You sure you have supplied the right path?"
-            "The path you gave me was: " + file_name
+            "The path you gave me was: " + csv_file_name
         )
         logging.error("Closing Script, try again")
         sys.exit(-1)
@@ -115,39 +133,67 @@ def plot_heatmap(trajectories: pd.DataFrame) -> None:
     Args:
         trajectories (pd.DataFrame): The trajectories to plot
     """
-    # Calculate the number of flies based on columns
+    global fps
+    plt_2 = plt.figure()
+
     num_flys = int(trajectories.shape[1] / 2)
     logging.info(f"Plotting {num_flys} flys")
 
-    # Create lists of all X and Y values
+    # Gather all X and Y values
     x_values = []
     y_values = []
     for i in range(1, num_flys + 1):
-        x_values.extend(trajectories[f"x{i}"].values)  # Append values (flatten)
+        x_values.extend(trajectories[f"x{i}"].values)
         y_values.extend(trajectories[f"y{i}"].values)
 
     x_values = np.array(x_values)
     y_values = np.array(y_values)
 
-    # Remove NaN and inf values
-    valid_mask = np.isfinite(x_values) & np.isfinite(
-        y_values
-    )  # Valid points are finite
+    # Remove NaNs
+    valid_mask = np.isfinite(x_values) & np.isfinite(y_values)
     x_values = x_values[valid_mask]
     y_values = y_values[valid_mask]
 
-    plot = plt.figure(2)
-    # Create 2D Heat Map
-    plt.hist2d(x_values, y_values, bins=(1, 1))
-    # Add color bar for intensity reference
-    plt.colorbar(label="Density")
-    # Draw Hardcoded Circle on the plot and then set the limits
-    draw_dish_and_set_limits(plt)
+    # Flip Y values if needed
+    y_values = -y_values
 
-    # Add titles and labels
-    plt.title("Heatmap of Fly Data (x, y) Pairs")
-    plt.grid(True)
-    plot.show()
+    t_s = 0
+    t_f = x_values.size if x_values.size > 0 else 0
+    x_min, x_max = x_values.min(), x_values.max()
+    y_min, y_max = y_values.min(), y_values.max()
+    border = 0.05
+    grid_resolution = 60
+
+    x_bins = np.linspace(
+        x_min - border * abs(x_max - x_min),
+        x_max + border * abs(x_max - x_min),
+        grid_resolution,
+    )
+    y_bins = np.linspace(
+        y_min - border * abs(y_max - y_min),
+        y_max + border * abs(y_max - y_min),
+        grid_resolution,
+    )
+
+    heatmap, _, _ = np.histogram2d(x_values, y_values, bins=[x_bins, y_bins])
+    heatmap_smooth = gaussian_filter(heatmap, sigma=4)
+
+    plt.imshow(
+        heatmap_smooth.T,
+        origin="lower",
+        cmap="jet",
+        extent=[x_bins[0], x_bins[-1], y_bins[0], y_bins[-1]],
+        aspect="auto",
+    )
+    # draw_dish_and_set_limits(plt)
+    plt.colorbar(label="Density")
+    plt.title(
+        f"Heatmap of Fly Trajectories between {round(t_s / fps, 2)} and {round(t_f / fps, 2)} secs"
+    )
+    plt.xlabel("X Position")
+    plt.ylabel("Y Position")
+
+    plt_2.show()
 
 
 def draw_dish_and_set_limits(plt) -> tuple:
@@ -175,30 +221,43 @@ def process_sheet() -> None:
     Check for issues with the format of the file
     Plot the values on a graph ignore nan values
     """
-    global file_name
-    if file_name is None:
-        logging.error("You need to select a file first!")
-        sys.exit(-1)
-
-    sheet = load_csv_file(file_name)
+    global csv_file_name, video_file_name
+    
+    # if video_file_name is None or csv_file_name is None:
+    #     logging.error("You need to select a Video file first!")
+    #     messagebox.showwarning("Missing Video File", "You need to select a file first!")
+    #     return    
+    if csv_file_name is None:
+        logging.error("You need to select a  CSV file first!")
+        messagebox.showwarning("Missing CSV File", "You need to select a file first!")
+        return
+    calculate_center_and_radius()
+    sheet = load_csv_file(csv_file_name)
     validate_trajectories(sheet)
     plot_cartesian_data(sheet)
     plot_heatmap(sheet)
 
+def calculate_center_and_radius():
+    global dish_center_x, dish_center_y, dish_radius
+    pass
 
 def main_gui() -> None:
     """
     Main GUI for the Fly Swapper
     """
-    global threshold_input, threshold
+    global threshold_input, threshold, csv_file_path
     root = Tk()
     root.title("Fly Swapper")
     text = Label(root, text="Fly Swapper")
     text.pack()
 
     # File Selection
-    text = Label(root, text="Select the flies Excel file")
-    button = Button(root, text="Select File", command=get_file_path_from_gui)
+    button = Button(root, text="Select File", command=get_csv_file_path)
+    text.pack()
+    button.pack()
+    
+    # Video Selection
+    button = Button(root, text="Select Video", command=get_video_file_path)
     text.pack()
     button.pack()
 
@@ -210,4 +269,8 @@ def main_gui() -> None:
     root.mainloop()
 
 
-main_gui()
+if __name__ == "__main__":
+    main_gui()
+
+
+    

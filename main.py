@@ -174,7 +174,7 @@ def plot_heatmap(trajectories: pd.DataFrame) -> None:
     )
 
     heatmap, _, _ = np.histogram2d(x_values, y_values, bins=[x_bins, y_bins])
-    heatmap_smooth = gaussian_filter(heatmap, sigma=4)
+    heatmap_smooth = gaussian_filter(heatmap, sigma=3)
 
     plt.imshow(
         heatmap_smooth.T,

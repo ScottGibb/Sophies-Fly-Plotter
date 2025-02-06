@@ -1,7 +1,6 @@
 ##heatmap
 import numpy as np
 import matplotlib.pyplot as plt
-import os
 from scipy.ndimage import gaussian_filter
 
 # Whether to use with_gaps folder (True) or without_gaps (False) (from output)

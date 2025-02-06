@@ -231,14 +231,14 @@ def process_sheet() -> None:
     plot_heatmap(sheet)
 
 def calculate_center_and_radius():
-    global dish_center_x, dish_center_y, dish_radius
+    global dish_center_x, dish_center_y, dish_radius, video_file_name
+    # OpenCV to get the center of the dish and radius
     pass
 
 def main_gui() -> None:
     """
     Main GUI for the Fly Swapper
     """
-    global threshold_input, threshold, csv_file_path
     root = Tk()
     root.title("Fly Swapper")
     text = Label(root, text="Fly Swapper")

@@ -2,7 +2,7 @@
 import logging
 import os
 import sys
-from tkinter import Button, Image, Label, filedialog, Tk
+from tkinter import BooleanVar, Button, Checkbutton, Image, Label, filedialog, Tk
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -24,6 +24,8 @@ dish_center_y = 0
 ## Dish is a circle with diameter of 55mm
 dish_radius = 500
 
+# Save Results
+save_results = None
 
 def get_csv_file_path():
     """
@@ -112,12 +114,16 @@ def plot_cartesian_data(trajectories: pd.DataFrame) -> None:
     plot_1 = plt.figure(1)
     for i in range(1, num_flys + 1):  # Loop through x1, y1 to x5, y5
         logging.info(f"Plotting fly {i}")
-        plt.plot(
-            trajectories[f"x{i}"],
-            trajectories[f"y{i}"],
-            label=f"Fly {i}",
-            marker="o",
-        )
+        try:
+            plt.plot(
+                trajectories[f"x{i}"],
+                trajectories[f"y{i}"],
+                label=f"Fly {i}",
+                marker="o",
+            )
+        except Exception as e:
+            logging.error(f"Error plotting fly {i}: {e}")
+            raise Exception(f"Error plotting fly {i}: {e}")
     draw_dish_and_set_limits(plt)
     # Add titles and labels
     plt.title("Plot of Fly Data (x, y) Pairs")
@@ -126,8 +132,14 @@ def plot_cartesian_data(trajectories: pd.DataFrame) -> None:
     plt.legend()
     plt.grid(True)
     plot_1.show()
+    __save_results(plot_1, "cartesian")
 
-
+def __save_results(plot, name):
+    if save_results.get():
+        global csv_file_name
+        file_path = csv_file_name.split(".")[0] + "_"+ name + ".png"
+        plot.savefig(file_path)
+        
 def plot_heatmap(trajectories: pd.DataFrame) -> None:
     """
     Plot the heatmap of the flies
@@ -193,6 +205,7 @@ def plot_heatmap(trajectories: pd.DataFrame) -> None:
     draw_dish_and_set_limits(plt)
 
     plt_2.show()
+    __save_results(plt_2, "heatmap")
 
 
 def draw_dish_and_set_limits(plt) -> tuple:
@@ -233,9 +246,16 @@ def process_sheet() -> None:
         return
     sheet = load_csv_file(csv_file_name)
     validate_trajectories(sheet)
-    plot_cartesian_data(sheet)
-    plot_heatmap(sheet)
-
+    try:
+        plot_cartesian_data(sheet)
+        plot_heatmap(sheet)
+    except Exception as e:
+        logging.error(f"Error plotting the data: {e}")
+        messagebox.showwarning("Error Plotting Data", "Error plotting the data. Are you sure your data is in the right format?")
+        return
+    messagebox.showinfo("Processing Complete", "Processing Complete..... If you want to save the results, please check the Save Results checkbox\n and click on the Process button again\n If the circle doesnt line up, are you sure youve used the right video to match the data?")
+    logging.info("Processing Complete")
+    
 def calculate_center_and_radius():
     global dish_center_x, dish_center_y, dish_radius, video_file_name
     # OpenCV code to calculate the center and radius of the dish
@@ -250,11 +270,13 @@ def calculate_center_and_radius():
     avg_dish_center_x = []
     avg_dish_center_y = []
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    num_frames =int( 0.1 * frame_count) # Use 10% of the frames
+    # num_frames =int( 0.1 * frame_count) # Use 1% of the frames
+    num_frames = 1
     logging.info(f"Number of frames in the video: {frame_count}")
     logging.info(f"Number of frames to process: {num_frames}")
     # Read the first frame
     for i in range(num_frames):
+        logging.info(f"Processing frame {i}")
         ret, frame = cap.read()
         if not ret:
             logging.error("Error reading video file")
@@ -262,8 +284,13 @@ def calculate_center_and_radius():
             raise Exception("Error reading video file")
         # Perform hough circle transform
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        gray = cv2.GaussianBlur(gray, (5, 5), 0)
-        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 20, param1=50, param2=30, minRadius=0, maxRadius=0)
+        # Apply a Gaussian blur to the image        
+        # Perform a threshold to get a binary image
+        _, thresholded = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)
+        
+        # Display the thresholded image for debugging
+        cv2.imshow("Thresholded Image", thresholded)
+        circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 20, param1=50, param2=30, minRadius=450, maxRadius=0)
         if circles is None:
             logging.error("No circles found in the video")
             messagebox.showwarning("No Circles Found", "No circles found in the video")
@@ -290,6 +317,8 @@ def main_gui() -> None:
     """
     Main GUI for the Fly Swapper
     """
+    global save_results
+
     root = Tk()
     root.title("Fly Swapper 4000")
     text = Label(root, text="Fly Swapper 4000")
@@ -302,6 +331,10 @@ def main_gui() -> None:
     panel = Label(root, image=fly_img)
     panel.image = fly_img
     panel.pack()
+    
+    # Save Results
+    save_results = BooleanVar(master=root, value=False)
+    Checkbutton(root, text="Save Results", variable=save_results).pack()
     
     # File Selection
     button = Button(root, text="Select File", command=get_csv_file_path)

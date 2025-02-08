@@ -1,48 +1,55 @@
 ---
 # This is the workflow for Deploying the software on Windows It should create an executable file
 # The executable file should be uploaded as an artifact
-# The executable file should be named "Fly Swapper 3000"
+# The executable file should be named "Fly Plotter 4000"
 name: Deployment
 
 on:
   push:
-    branches:
-      - "main"
-  pull_request:
-    branches:
-      - "main"
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
+  linting:
+    uses: ./.github/workflows/mega-linter.yaml
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      statuses: write
+
   pyinstaller-build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Python
-        uses: actions/setup-python@v4
-        # see details (matrix, python-version, python-version-file, etc.)
-        # https://github.com/actions/setup-python
-        with:
-          python-version: '3.12' 
-      - name: Install poetry
-        uses: abatilo/actions-poetry@v4
-      - name: Setup a local virtual environment (if no poetry.toml file)
+      - name: Check if on main branch
+        if: github.ref != 'refs/heads/main'
         run: |
-          poetry config virtualenvs.create true --local
-          poetry config virtualenvs.in-project true --local
-      - uses: actions/cache@v3
-        name: Define a cache for the virtual environment based on the dependencies lock file
-        with:
-          path: ./.venv
-          key: venv-${{ hashFiles('poetry.lock') }}
-      - name: Create requirements.txt
+          echo "This Tag is not on the main branch!"
+          exit 1
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Verify Version
         run: |
-          poetry self add poetry-plugin-export
-          poetry export -f requirements.txt --output requirements.txt
-      - name: Create Executable
-        uses: sayyid5416/pyinstaller@v1
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          TOML_VERSION=$(grep '^version =' pyproject.toml | sed -E 's/version = "([^"]+)"/\1/')
+          if [ "$TAG_VERSION" != "$TOML_VERSION" ]; then
+            echo "Version mismatch: tag is $TAG_VERSION but pyproject.toml is $TOML_VERSION"
+            exit 1  # Exits with a non-zero status to fail the workflow
+          fi
+        shell: bash
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+        run: |
+          gh release create "$tag" \
+              --repo="$GITHUB_REPOSITORY" \
+              --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
+              --generate-notes
+      - uses: sayyid5416/pyinstaller@v1
         with:
           python_ver: "3.12"
           spec: "main.py"
           requirements: "requirements.txt"
-          upload_exe_with_name: "Fly Swapper 3000"
-          options: --onefile, --name "Fly Swapper 3000", --icon ".\docs\\SG Logo.ico", --add-data ".\docs\;docs"
+          upload_exe_with_name: "Fly Plotter 4000"
+          options: --onefile, --name "Fly Plotter 4000", --icon ".\docs\\SG Logo.ico", --add-data ".\docs\;docs"

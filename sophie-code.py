@@ -16,7 +16,7 @@ t_f = 300
 fps = 30
 
 # Define the base directory
-base_dir = "/home/pi/Sophie-Fly-Plotter/trajectories/trajectories.csv"
+base_dir = "trajectories\dead_flies_trajectories.csv"
 
 # Load the data
 try:

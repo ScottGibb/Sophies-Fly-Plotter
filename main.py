@@ -2,7 +2,7 @@
 import logging
 import os
 import sys
-from tkinter import BooleanVar, Button, Checkbutton, Image, Label, filedialog, Tk
+from tkinter import BooleanVar, Button, Checkbutton, Label, filedialog, Tk
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd

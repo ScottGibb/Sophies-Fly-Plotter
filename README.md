@@ -19,7 +19,6 @@ uv venv --python 3.12.0
 uv pip install -r requirements.txt
 ```
 
-
 Test TKinter
 
 ```bash

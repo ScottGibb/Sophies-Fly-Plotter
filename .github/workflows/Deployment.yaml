@@ -27,7 +27,7 @@ jobs:
           echo "This Tag is not on the main branch!"
           exit 1
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Verify Version
         run: |
           TAG_VERSION=${GITHUB_REF#refs/tags/v}
